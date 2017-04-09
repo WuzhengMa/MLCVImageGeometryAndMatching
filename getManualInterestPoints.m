@@ -7,5 +7,5 @@ imshow(imgExample);
 
 hold on
 for i=1:size(x)
-    plot(x(i),y(i), 'rx');
+    plot(x(i),y(i), 'yx');
 end

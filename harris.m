@@ -55,11 +55,11 @@ function [cim, r, c] = harris(im, thresh, radius)
     Iy2 = conv2(Iy.^2, g, 'same');
     Ixy = conv2(Ix.*Iy, g, 'same');
     
-    cim = (Ix2.*Iy2 - Ixy.^2)./(Ix2 + Iy2 + eps); % Harris corner measure
+    cim = ((Ix2.*Iy2 - Ixy.^2)./(Ix2 + Iy2 + eps)); % Harris corner measure
 
     % Alternate Harris corner measure used by some.  Suggested that
-    % k=0.04 - I find this a bit arbitrary and unsatisfactory.
-%   cim = (Ix2.*Iy2 - Ixy.^2) - k*(Ix2 + Iy2).^2; 
+    %k=0.04; %- I find this a bit arbitrary and unsatisfactory.
+    %cim = (Ix2.*Iy2 - Ixy.^2) - k*(Ix2 + Iy2).^2; 
 
 	
 	% Extract local maxima by performing a grey scale morphological

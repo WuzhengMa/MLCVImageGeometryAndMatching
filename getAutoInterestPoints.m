@@ -1,7 +1,6 @@
 %Harris interest point detector
-imgExample = imread('lenna.pgm');
-imshow(checkerboard);
-[cim, r, c] = harris(checkerboard, 0.1, 3);
+function [cim, x, y] = getAutoInterestPoints(imgExample, thresh, radius) 
 
-hold on;
-plot(r,c, 'yx');
+[cim, x, y] = harris(imgExample, thresh, radius);
+
+end
