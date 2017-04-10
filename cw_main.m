@@ -31,7 +31,8 @@ hold on;
 plot(y2,x2,'rx');
 hold off;
 
-[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2);
+[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
+%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
 
 %Show interest points
 figure;
@@ -59,7 +60,6 @@ hold off;
 h = getHomographyMatrix(x1, y1, x2, y2);
 
 %% Q1.3.b) Computing fundamental matrix F, where x'^TFx = 0
-%[x2, y2] = rearrangePoints(nearestIndex, x2, y2);
 [F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'Norm8Point');
 
 %% Q1.3.c)
@@ -182,69 +182,52 @@ function [x, y] = rearrangePoints(nearestIndex, x, y)
     end
 end
 
-function [desp1, desp2, X1, Y1, X2, Y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2)
+function [desp1, desp2, X1, Y1, X2, Y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, method)
     %When the size of descriptors are different, keep the pair of descriptors
     %with thee size equals to the descriptor which has smaller size
     %Do nothing when the size of descriptors are the same
-    desp1 = [];
-    desp2 = [];
-    X1 = [];
-    Y1 = [];
-    X2 = [];
-    Y2 = [];
     inlinerFactor = 1.8;
     if size(descriptors2, 1) >= size(descriptors1, 1)
-        [nearestIndex, distance] = knnsearch(descriptors2, descriptors1, 'Distance', 'cityblock');
-        %Keep only 8 nearest points to reduce error in calculating
-        %homography and fundamental matrix
-        eightNearestDistances = sort(distance);
-        eightNearestDistances = eightNearestDistances(1:8);
-        for i = 1:size(eightNearestDistances)
-            for j = 1:size(distance)
-                if eightNearestDistances(i) == distance(j)
-                    eightIndex(i) = j;
-                end
-            end
-            eightNNeighborIndex(i) = nearestIndex(eightIndex(i));
-        end
-        
-        inlinerFlag = eightNearestDistances < mean(eightNearestDistances)*inlinerFactor;
-        for i = 1:size(inlinerFlag)
-            if inlinerFlag(i)
-                desp1 = [desp1; descriptors1(eightIndex(i),:)];
-                desp2 = [desp2; descriptors2(eightNNeighborIndex(i),:)];
-                X1 = [X1, x1(eightIndex(i),:)];
-                Y1 = [Y1, y1(eightIndex(i),:)];
-                X2 = [X2, x2(eightNNeighborIndex(i), :)];
-                Y2 = [Y2, y2(eightNNeighborIndex(i), :)];
-            end
+        if method == 'Norm8Points'
+            [desp1, desp2, X1, Y1, X2, Y2] = keepEightNearestPoints(descriptors1, descriptors2, x1, y1, x2, y2, inlinerFactor);
         end
     elseif size(descriptors2, 1) < size(descriptors1, 1)
-        [nearestIndex, distance] = knnsearch(descriptors1, descriptors2, 'Distance', 'cityblock');
-        
-        %Keep only 8 nearest points to reduce error in calculating
-        %homography and fundamental matrix
-        eightNearestDistances = sort(distance);
-        eightNearestDistances = eightNearestDistances(1:8);
-        for i = 1:size(eightNearestDistances)
-            for j = 1:size(distance)
-                if eightNearestDistances(i) == distance(j)
-                    eightIndex(i) = j;
-                end
-            end
-            eightNNeighborIndex(i) = nearestIndex(eightIndex(i));
+        if method == 'Norm8Points'
+            [desp2, desp1, X2, Y2, X1, Y1] = keepEightNearestPoints(descriptors2, descriptors1, x2, y2, x1, y1, inlinerFactor);
         end
-        
-        inlinerFlag = distance < mean(distance)*inlinerFactor;
-        for i = 1:size(inlinerFlag)
-            if inlinerFlag(i)
-                desp1 = [desp1; descriptors1(eightNNeighborIndex(i),:)];
-                desp2 = [desp2; descriptors2(eightIndex(i),:)];
-                X1 = [X1, x1(eightNNeighborIndex(i), :)];
-                Y1 = [Y1, y1(eightNNeighborIndex(i), :)];
-                X2 = [X2, x2(eightIndex(i),:)];
-                Y2 = [Y2, y2(eightIndex(i),:)];
+    end
+end
+
+function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEightNearestPoints(sSizeDescriptors, lSizeDescriptors, sx, sy, lx, ly, inlinerFactor)
+    %Keep only 8 nearest points to reduce error in calculating
+    %homography and fundamental matrix
+    sSizeDesp = [];
+    lSizeDesp = [];
+    SX = [];
+    SY = [];
+    LX = [];
+    LY = [];
+    [nearestIndex, distance] = knnsearch(lSizeDescriptors, sSizeDescriptors, 'Distance', 'cityblock');
+    eightNearestDistances = sort(distance);
+    eightNearestDistances = eightNearestDistances(1:8);
+    for i = 1:size(eightNearestDistances)
+        for j = 1:size(distance)
+            if eightNearestDistances(i) == distance(j)
+                eightIndex(i) = j;
             end
+        end
+        eightNNeighborIndex(i) = nearestIndex(eightIndex(i));
+    end
+
+    inlinerFlag = eightNearestDistances < mean(eightNearestDistances)*inlinerFactor;
+    for i = 1:size(inlinerFlag)
+        if inlinerFlag(i)
+            sSizeDesp = [sSizeDesp; sSizeDescriptors(eightIndex(i),:)];
+            lSizeDesp = [lSizeDesp; lSizeDescriptors(eightNNeighborIndex(i),:)];
+            SX = [SX, sx(eightIndex(i),:)];
+            SY = [SY, sy(eightIndex(i),:)];
+            LX = [LX, lx(eightNNeighborIndex(i), :)];
+            LY = [LY, ly(eightNNeighborIndex(i), :)];
         end
     end
 end
