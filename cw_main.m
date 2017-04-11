@@ -1,37 +1,50 @@
+init;
 patchSize = 32;
 
 %% Q1.2.a) Harris interest point detector
-imageName1 = 'im0.ppm';
-imageName2 = 'im1.ppm';
+imageName1 = 'boat/img1.pgm';
+imageName2 = 'boat/img2.pgm';
 
-imgExample1 = rgb2gray(imread(imageName1));
-[x1, y1] = harrisDetector(imageName1, patchSize);
-%coor1 = InterestPointDetector(imgExample1, 0.8, true, 30);
-imgExample2 = rgb2gray(imread(imageName2));
-%coor2 = InterestPointDetector(imgExample2, 0.8, true, 30);
-[x2, y2] = harrisDetector(imageName2, patchSize);
+if size(size(imread(imageName1)),2) == 2
+    imgExample1 = (imread(imageName1));
+    imgExample2 = (imread(imageName2));
+else 
+    imgExample1 = rgb2gray(imread(imageName1));
+    imgExample2 = rgb2gray(imread(imageName2));
+end
 
+% [x1, y1] = harrisDetector(imageName1, patchSize);
+% [x2, y2] = harrisDetector(imageName2, patchSize);
 
 
 %% Q1.2.b)
-colorHistogram = true;
-descriptors1 = getDescriptors(imgExample1, x1, y1, patchSize, colorHistogram);
-descriptors2 = getDescriptors(imgExample2, x2, y2, patchSize, colorHistogram);
+%Get color histogram descriptor
+% colorHistogram = true;
+% descriptors1 = getDescriptors(imgExample1, x1, y1, patchSize, colorHistogram);
+% descriptors2 = getDescriptors(imgExample2, x2, y2, patchSize, colorHistogram);
+
+%feature detection and descriptor by SIFT
+[features1, descriptors1] = vl_sift(single(imgExample1), 'EdgeThresh', 3);
+[features2, descriptors2] = vl_sift(single(imgExample2), 'EdgeThresh', 3);
+
 %Show interest points
 imshow(imageName1);
 title('Test image 1 before rearrange');
 hold on;
-plot(y1,x1,'rx');
+plot(features1(1,:), features1(2,:), 'rx');
+%plot(y1,x1,'rx');
 hold off; 
 
 figure;
 imshow(imageName2);
 title('Test image 2 before rearrange');
 hold on;
-plot(y2,x2,'rx');
+plot(features2(1,:), features2(2,:), 'rx');
+%plot(y2,x2,'rx');
 hold off;
 
-[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
+[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'Norm8Points');
+%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
 %[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
 
 %Show interest points
@@ -61,11 +74,15 @@ h = getHomographyMatrix(x1, y1, x2, y2);
 
 %% Q1.3.b) Computing fundamental matrix F, where x'^TFx = 0
 [F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'Norm8Point');
+%[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'RANSAC');
 
 %% Q1.3.c)
 %Obtain the projection points from image 2 to image 1
 homoTransPoints = h\[x2;y2;ones(1,size(x2,2))];
 transPoints = (1./homoTransPoints(3,:)).*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
+
+%Calculate the homography accuracy HA
+[HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
 
 % Draw the projected point back to image 1
 subplot(2,2,[3,4]);
@@ -128,7 +145,11 @@ function res = getDescriptors(imgExample, x, y, patchSize, colorHistogram)
 end
 
 function [x, y] = harrisDetector(imageName, patchSize)
-    imgExample = rgb2gray(imread(imageName));
+    if size(size(imread(imageName1)),2) == 2
+        imgExample = (imread(imageName));
+    else
+        imgExample = rgb2gray(imread(imageName));
+    end
     [cim, x, y] = getAutoInterestPoints(imgExample, 5350, 30);
     [x, y] = removeEdgePoints(imgExample, x, y, patchSize);
 end
@@ -172,35 +193,56 @@ function res = getHomographyMatrix(x1, y1, x2, y2)
     res = (reshape(V(:,9), 3, 3)).';
 end
 
-function [x, y] = rearrangePoints(nearestIndex, x, y)
-    tempX = x;
-    tempY = y;
-    %Rearrange x and y to match coordinates in x1 and y1 
-    for i = 1:size(nearestIndex)
-        x(i) = tempX(nearestIndex(i));
-        y(i) = tempY(nearestIndex(i));
+% function [x, y] = rearrangePoints(nearestIndex, x, y)
+%     tempX = x;
+%     tempY = y;
+%     %Rearrange x and y to match coordinates in x1 and y1 
+%     for i = 1:size(nearestIndex)
+%         x(i) = tempX(nearestIndex(i));
+%         y(i) = tempY(nearestIndex(i));
+%     end
+% end
+
+function [HA, HD] = getHomoAccuracy(oriPoints, transPoints)
+    %HD is computed as the sum of difference between transformed points and
+    %the original points
+    %HA is computed as the rate where the transformed points is identical
+    %to the original points
+    HA = 0;
+    HD = sum(sum(abs(oriPoints - transPoints)));
+    correctMapped = HD < [1;1];
+    for i = 1:size(correctMapped,2)
+        if correctMapped(1,i) && correctMapped(1,i)
+            HA = HA + 1;
+        end
     end
+    HA = HA / size(correctMapped,2); %Homography Accuracy
 end
 
 function [desp1, desp2, X1, Y1, X2, Y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, method)
-    %When the size of descriptors are different, keep the pair of descriptors
-    %with thee size equals to the descriptor which has smaller size
-    %Do nothing when the size of descriptors are the same
+    %When the method is 'Norm8Points', only 8 pairs of interest points will 
+    %be used, hence use NN method to find 8 pairs of closest interest points
+    %When the method is 'RANSAC', equal pairs of interest points will be
+    %used, hence use NN method to find equal pairs of closest interest
+    %points
     inlinerFactor = 1.8;
     if size(descriptors2, 1) >= size(descriptors1, 1)
-        if method == 'Norm8Points'
+        if strcmp(method, 'Norm8Points')
             [desp1, desp2, X1, Y1, X2, Y2] = keepEightNearestPoints(descriptors1, descriptors2, x1, y1, x2, y2, inlinerFactor);
+        elseif strcmp(method, 'RANSAC')
+            [desp1, desp2, X1, Y1, X2, Y2] = keepEqualNumPoints(descriptors1, descriptors2, x1, y1, x2, y2, inlinerFactor);
         end
     elseif size(descriptors2, 1) < size(descriptors1, 1)
-        if method == 'Norm8Points'
+        if strcmp(method, 'Norm8Points')
             [desp2, desp1, X2, Y2, X1, Y1] = keepEightNearestPoints(descriptors2, descriptors1, x2, y2, x1, y1, inlinerFactor);
+        elseif strcmp(method, 'RANSAC')
+            [desp2, desp1, X2, Y2, X1, Y1] = keepEqualNumPoints(descriptors2, descriptors1, x2, y2, x1, y1, inlinerFactor);
         end
     end
 end
 
 function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEightNearestPoints(sSizeDescriptors, lSizeDescriptors, sx, sy, lx, ly, inlinerFactor)
-    %Keep only 8 nearest points to reduce error in calculating
-    %homography and fundamental matrix
+    %Use NN search to find 8 pairs of closest interest points
     sSizeDesp = [];
     lSizeDesp = [];
     SX = [];
@@ -228,6 +270,28 @@ function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEightNearestPoints(sSizeDe
             SY = [SY, sy(eightIndex(i),:)];
             LX = [LX, lx(eightNNeighborIndex(i), :)];
             LY = [LY, ly(eightNNeighborIndex(i), :)];
+        end
+    end
+end
+
+function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEqualNumPoints(sSizeDescriptors, lSizeDescriptors, sx, sy, lx, ly, inlinerFactor)
+    %Use NN search to find equal pairs of closest interest points
+    sSizeDesp = [];
+    lSizeDesp = [];
+    SX = [];
+    SY = [];
+    LX = [];
+    LY = [];
+    [nearestIndex, distance] = knnsearch(lSizeDescriptors, sSizeDescriptors, 'Distance', 'cityblock');
+    inlinerFlag = distance < mean(distance)*inlinerFactor;
+    for i = 1:size(inlinerFlag)
+        if inlinerFlag(i)
+            sSizeDesp = sSizeDescriptors;
+            lSizeDesp = [lSizeDesp; lSizeDescriptors(nearestIndex(i),:)];
+            SX = sx';
+            SY = sy';
+            LX = [LX, lx(nearestIndex(i), :)];
+            LY = [LY, ly(nearestIndex(i), :)];
         end
     end
 end
