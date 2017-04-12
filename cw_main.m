@@ -2,8 +2,8 @@ init;
 patchSize = 32;
 
 %% Q1.2.a) Harris interest point detector
-imageName1 = 'boat/img1.pgm';
-imageName2 = 'boat/img2.pgm';
+imageName1 = 'FDFigures/DSC02712.JPG';
+imageName2 = 'FDFigures/DSC02713.JPG';
 
 if size(size(imread(imageName1)),2) == 2
     imgExample1 = (imread(imageName1));
