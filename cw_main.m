@@ -2,8 +2,8 @@ init;
 patchSize = 32;
 
 %% Q1.2.a) Harris interest point detector
-imageName1 = 'FDFigures/DSC02712.JPG';
-imageName2 = 'FDFigures/DSC02713.JPG';
+imageName1 = 'DSC02715.ppm';
+imageName2 = 'DSC02722.ppm';
 
 if size(size(imread(imageName1)),2) == 2
     imgExample1 = (imread(imageName1));
@@ -13,38 +13,39 @@ else
     imgExample2 = rgb2gray(imread(imageName2));
 end
 
-% [x1, y1] = harrisDetector(imageName1, patchSize);
-% [x2, y2] = harrisDetector(imageName2, patchSize);
+[x1, y1] = harrisDetector(imageName1, patchSize);
+[x2, y2] = harrisDetector(imageName2, patchSize);
 
 
 %% Q1.2.b)
 %Get color histogram descriptor
-% colorHistogram = true;
-% descriptors1 = getDescriptors(imgExample1, x1, y1, patchSize, colorHistogram);
-% descriptors2 = getDescriptors(imgExample2, x2, y2, patchSize, colorHistogram);
+colorHistogram = false; %Using the intensity at each pixel of the map is better than using color histogram
+descriptors1 = getDescriptors(imgExample1, x1, y1, patchSize, colorHistogram);
+descriptors2 = getDescriptors(imgExample2, x2, y2, patchSize, colorHistogram);
 
 %feature detection and descriptor by SIFT
-[features1, descriptors1] = vl_sift(single(imgExample1), 'EdgeThresh', 3);
-[features2, descriptors2] = vl_sift(single(imgExample2), 'EdgeThresh', 3);
+%[features1, descriptors1] = vl_sift(single(imgExample1), 'EdgeThresh', 3);
+%[features2, descriptors2] = vl_sift(single(imgExample2), 'EdgeThresh', 3);
 
 %Show interest points
 imshow(imageName1);
 title('Test image 1 before rearrange');
 hold on;
-plot(features1(1,:), features1(2,:), 'rx');
-%plot(y1,x1,'rx');
+%plot(features1(1,:), features1(2,:), 'rx');
+plot(y1,x1,'rx');
 hold off; 
 
 figure;
 imshow(imageName2);
 title('Test image 2 before rearrange');
 hold on;
-plot(features2(1,:), features2(2,:), 'rx');
-%plot(y2,x2,'rx');
+%plot(features2(1,:), features2(2,:), 'rx');
+plot(y2,x2,'rx');
 hold off;
 
-[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'Norm8Points');
-%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
+%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'Norm8Points');
+%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'RANSAC');
+[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
 %[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
 
 %Show interest points
@@ -145,12 +146,12 @@ function res = getDescriptors(imgExample, x, y, patchSize, colorHistogram)
 end
 
 function [x, y] = harrisDetector(imageName, patchSize)
-    if size(size(imread(imageName1)),2) == 2
+    if size(size(imread(imageName)),2) == 2
         imgExample = (imread(imageName));
     else
         imgExample = rgb2gray(imread(imageName));
     end
-    [cim, x, y] = getAutoInterestPoints(imgExample, 5350, 30);
+    [cim, x, y] = getAutoInterestPoints(imgExample, 500, 30);
     [x, y] = removeEdgePoints(imgExample, x, y, patchSize);
 end
 
@@ -288,8 +289,8 @@ function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEqualNumPoints(sSizeDescri
         if inlinerFlag(i)
             sSizeDesp = sSizeDescriptors;
             lSizeDesp = [lSizeDesp; lSizeDescriptors(nearestIndex(i),:)];
-            SX = sx';
-            SY = sy';
+            SX = [SX, sx(i,:)'];
+            SY = [SY, sy(i,:)'];
             LX = [LX, lx(nearestIndex(i), :)];
             LY = [LY, ly(nearestIndex(i), :)];
         end
