@@ -2,8 +2,8 @@ init;
 patchSize = 32;
 
 %% Q1.2.a) Harris interest point detector
-imageName1 = 'DSC02715.ppm';
-imageName2 = 'DSC02722.ppm';
+imageName1 = 'barn2/im0.ppm';
+imageName2 = 'barn2/im1.ppm';
 
 if size(size(imread(imageName1)),2) == 2
     imgExample1 = (imread(imageName1));
@@ -19,7 +19,7 @@ end
 
 %% Q1.2.b)
 %Get color histogram descriptor
-colorHistogram = false; %Using the intensity at each pixel of the map is better than using color histogram
+colorHistogram = true; %Using the intensity at each pixel of the map is better than using color histogram
 descriptors1 = getDescriptors(imgExample1, x1, y1, patchSize, colorHistogram);
 descriptors2 = getDescriptors(imgExample2, x2, y2, patchSize, colorHistogram);
 
@@ -28,16 +28,17 @@ descriptors2 = getDescriptors(imgExample2, x2, y2, patchSize, colorHistogram);
 %[features2, descriptors2] = vl_sift(single(imgExample2), 'EdgeThresh', 3);
 
 %Show interest points
+subplot(1,2,1);
 imshow(imageName1);
-title('Test image 1 before rearrange');
+title('Interest points detection for Test image 1');
 hold on;
 %plot(features1(1,:), features1(2,:), 'rx');
 plot(y1,x1,'rx');
 hold off; 
 
-figure;
+subplot(1,2,2);
 imshow(imageName2);
-title('Test image 2 before rearrange');
+title('Interest points detection Test image 2');
 hold on;
 %plot(features2(1,:), features2(2,:), 'rx');
 plot(y2,x2,'rx');
@@ -45,21 +46,21 @@ hold off;
 
 %[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'Norm8Points');
 %[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'RANSAC');
-[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
-%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
+%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
+[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
 
 %Show interest points
 figure;
-subplot(2,2,1);
+subplot(1,2,1);
 imshow(imageName1);
-title('Test image 1 after rearrange');
+title('NN paired patches Test image 1');
 hold on;
 plot(y1,x1,'rx');
 hold off; 
 
-subplot(2,2,2);
+subplot(1,2,2);
 imshow(imageName2);
-title('Test image 2 after rearrange');
+title('NN paired patches Test image 2');
 hold on;
 plot(y2,x2,'rx');
 hold off;
@@ -74,8 +75,8 @@ hold off;
 h = getHomographyMatrix(x1, y1, x2, y2);
 
 %% Q1.3.b) Computing fundamental matrix F, where x'^TFx = 0
-[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'Norm8Point');
-%[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'RANSAC');
+%[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'Norm8Point');
+[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'RANSAC');
 
 %% Q1.3.c)
 %Obtain the projection points from image 2 to image 1
@@ -151,7 +152,7 @@ function [x, y] = harrisDetector(imageName, patchSize)
     else
         imgExample = rgb2gray(imread(imageName));
     end
-    [cim, x, y] = getAutoInterestPoints(imgExample, 500, 30);
+    [cim, x, y] = getAutoInterestPoints(imgExample, 2000, 30);
     [x, y] = removeEdgePoints(imgExample, x, y, patchSize);
 end
 
