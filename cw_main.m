@@ -120,7 +120,7 @@ line(points(:,[2,4])',points(:,[1,3])');
 hold off;
 
 %% Utility functions 
-
+%{
 function res = getDescriptors(imgExample, x, y, patchSize, colorHistogram)
     descriptors = zeros(size(x,1), patchSize*patchSize);  % descriptor of size N*M
     colorHistDescriptors = zeros(size(x,1), 256);
@@ -297,3 +297,4 @@ function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEqualNumPoints(sSizeDescri
         end
     end
 end
+%}
