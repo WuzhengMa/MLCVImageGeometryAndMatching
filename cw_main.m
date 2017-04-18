@@ -81,7 +81,9 @@ h = getHomographyMatrix(x1, y1, x2, y2);
 %% Q1.3.c)
 %Obtain the projection points from image 2 to image 1
 homoTransPoints = h\[x2;y2;ones(1,size(x2,2))];
-transPoints = (1./homoTransPoints(3,:)).*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
+oneOverHomoZ=(1./homoTransPoints(3,:));
+oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
+transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
 
 %Calculate the homography accuracy HA
 [HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
