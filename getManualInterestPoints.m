@@ -1,11 +1,9 @@
-%Manually get coordinates of interest points
-imgExample = imread('img1.pgm');
-imgExample2 = imread('img2.pgm');
-%image(imgExample);
-imshow(imgExample);
-[x,y] = ginput
+function [x, y] = getManualInterestPoints(imageName)
+    %Manually get coordinates of interest points
+    imgExample = imread(imageName);
+    imshow(imgExample);
+    [y, x] = ginput;
+    x = fix(x);
+    y = fix(y);
 
-hold on
-for i=1:size(x)
-    plot(x(i),y(i), 'yx');
 end
