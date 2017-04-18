@@ -46,8 +46,8 @@ hold off;
 
 %[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'Norm8Points');
 %[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'RANSAC');
-%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
-[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
+[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
+%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
 
 %Show interest points
 figure;
@@ -89,7 +89,7 @@ transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate
 [HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
 
 % Draw the projected point back to image 1
-subplot(2,2,[3,4]);
+
 imshow(imageName1);
 title('Projected figure from image 2 to image 1');
 hold on;
@@ -105,7 +105,7 @@ title('Epipolar lines of image 1');
 hold on;
 plot(y1,x1,'go');
 %epiLines = epipolarLine(F', [x1, y1]);
-epiLines = (F*[x2', y2', ones(size(x2,2),1)]')';
+epiLines = ( *[x2', y2', ones(size(x2,2),1)]')';
 points = lineToBorderPoints(epiLines, [size(imgExample1,2), size(imgExample1,1)]);
 line(points(:,[2,4])',points(:,[1,3])');
 hold off;
