@@ -10,7 +10,7 @@ function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEqualNumPoints(sSizeDescri
     inlinerFlag = distance < mean(distance)*inlinerFactor;
     for i = 1:size(inlinerFlag)
         if inlinerFlag(i)
-            sSizeDesp = sSizeDescriptors;
+            sSizeDesp = [sSizeDesp; sSizeDescriptors(i,:)];
             lSizeDesp = [lSizeDesp; lSizeDescriptors(nearestIndex(i),:)];
             SX = [SX, sx(i,:)'];
             SY = [SY, sy(i,:)'];
