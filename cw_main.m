@@ -2,8 +2,8 @@ init;
 patchSize = 32;
 
 %% Q1.2.a) Harris interest point detector
-imageName1 = 'barn2/im0.ppm';
-imageName2 = 'barn2/im1.ppm';
+imageName1 = 'tsukuba/scene1.row3.col1.ppm';
+imageName2 = 'tsukuba/scene1.row3.col4.ppm';
 
 if size(size(imread(imageName1)),2) == 2
     imgExample1 = (imread(imageName1));
@@ -13,8 +13,9 @@ else
     imgExample2 = rgb2gray(imread(imageName2));
 end
 
-[x1, y1] = harrisDetector(imageName1, patchSize);
-[x2, y2] = harrisDetector(imageName2, patchSize);
+
+[x1, y1] = harrisDetector(imageName1, patchSize, 100, 10);
+[x2, y2] = harrisDetector(imageName2, patchSize, 100, 10);
 
 
 %% Q1.2.b)
@@ -46,8 +47,8 @@ hold off;
 
 %[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'Norm8Points');
 %[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1', descriptors2', features1(1,:)', features1(2,:)', features2(1,:)', features2(2,:)', 'RANSAC');
-[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
-%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
+%[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'Norm8Points');
+[descriptors1, descriptors2, x1, y1, x2, y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
 
 %Show interest points
 figure;
@@ -73,7 +74,6 @@ hold off;
 
 %% Q1.3.a)
 [h, status1] = getHomographyMatrix(x1, y1, x2, y2, 'default', 500);
-[hTest, status2 ] = getHomographyMatrix(x1, y1, x2, y2, 'RANSAC', 2000);
 
 %Obtain the projection points from image 2 to image 1
 homoTransPoints = h\[x2;y2;ones(1,size(x2,2))];
@@ -84,18 +84,14 @@ transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate
 %Calculate the homography accuracy HA
 [HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
 
-%Obtain the projection points from image 2 to image 1
-homoTransPoints = hTest\[x2;y2;ones(1,size(x2,2))];
-oneOverHomoZ=(1./homoTransPoints(3,:));
-oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
-transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
-
-%Calculate the homography accuracy HA
-[HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
-
 %% Q1.3.b) Computing fundamental matrix F, where x'^TFx = 0
+%Using MATLAB build-in function
 %[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'Norm8Point');
-[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'RANSAC');
+%[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'RANSAC')
+
+%Using own implementation
+%[F,inliersIndex] = getFundamentalMatrix([x1', y1'],[x2', y2'], 'Norm8Points', 1);
+[F,inliersIndex] = getFundamentalMatrix([x1', y1'],[x2', y2'], 'RANSAC', 20000)
 
 %% Q1.3.c)
 %Obtain the projection points from image 2 to image 1
@@ -108,7 +104,6 @@ transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate
 [HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
 
 % Draw the projected point back to image 1
-
 imshow(imageName1);
 title('Projected figure from image 2 to image 1');
 hold on;
@@ -123,8 +118,8 @@ imshow(imageName1);
 title('Epipolar lines of image 1');
 hold on;
 plot(y1,x1,'go');
-%epiLines = epipolarLine(F', [x1, y1]);
-epiLines = ( *[x2', y2', ones(size(x2,2),1)]')';
+%epiLines = epipolarLine(F, [x2, y2]);
+epiLines = (F*[x2', y2', ones(size(x2,2),1)]')';
 points = lineToBorderPoints(epiLines, [size(imgExample1,2), size(imgExample1,1)]);
 line(points(:,[2,4])',points(:,[1,3])');
 hold off;
@@ -134,7 +129,7 @@ imshow(imageName2);
 title('Epipolar lines of image 2');
 hold on;
 plot(y2,x2,'go');
-%epiLines = epipolarLine(F, [x2, y2]);
+%epiLines = epipolarLine(F', [x1, y1]');
 epiLines = (F'*[x1', y1', ones(size(x1,2),1)]')';
 points = lineToBorderPoints(epiLines, [size(imgExample1,2), size(imgExample1,1)]);
 line(points(:,[2,4])',points(:,[1,3])');
