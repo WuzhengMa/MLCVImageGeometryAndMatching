@@ -84,6 +84,7 @@ transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate
 %Calculate the homography accuracy HA
 [HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
 
+
 %% Q1.3.b) Computing fundamental matrix F, where x'^TFx = 0
 %Using MATLAB build-in function
 %[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'Norm8Point');
