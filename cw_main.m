@@ -72,7 +72,26 @@ hold off;
 %[nearestIndex, distance] = knnsearch(descriptors2, descriptors1, 'Distance', 'cityblock');
 
 %% Q1.3.a)
-h = getHomographyMatrix(x1, y1, x2, y2);
+[h, status1] = getHomographyMatrix(x1, y1, x2, y2, 'default', 500);
+[hTest, status2 ] = getHomographyMatrix(x1, y1, x2, y2, 'RANSAC', 2000);
+
+%Obtain the projection points from image 2 to image 1
+homoTransPoints = h\[x2;y2;ones(1,size(x2,2))];
+oneOverHomoZ=(1./homoTransPoints(3,:));
+oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
+transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
+
+%Calculate the homography accuracy HA
+[HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
+
+%Obtain the projection points from image 2 to image 1
+homoTransPoints = hTest\[x2;y2;ones(1,size(x2,2))];
+oneOverHomoZ=(1./homoTransPoints(3,:));
+oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
+transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
+
+%Calculate the homography accuracy HA
+[HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
 
 %% Q1.3.b) Computing fundamental matrix F, where x'^TFx = 0
 %[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'Norm8Point');

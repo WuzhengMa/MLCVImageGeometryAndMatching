@@ -1,56 +1,59 @@
 function [res, status] = getHomographyMatrix(x1, y1, x2, y2, method, nTrials)
     %[x2, y2] = rearrangePoints(nearestIndex, x2, y2);
-    confidence=99;
+    confidence = 99;
+    threshold = 0.01;
     
     statusCode = struct('NoError',           int32(0),...
                     'NotEnoughPts',      int32(1),...
                     'NotEnoughInliers',  int32(2));
    
-    if strcmp(method, 'default')
-        n = size(x1,2);
-    
-        rows0 = zeros(3, n);
-        rowsXY = -[x1; y1; ones(1,n)];
-        hx = [rowsXY; rows0; x2.*x1; x2.*y1; x2];
-        hy = [rows0; rowsXY; y2.*x1; y2.*y1; y2];
-        h = [hx hy];
-        [U, ~, V] = svd(h');
-        res = (reshape(V(:,9), 3, 3)).';
-    else
-        if(size(x1,2) > size(x2,2))
-            nPts = size(x2,2);
-        else
-            nPts = size(x1,2);
-        end
-        inliers = false(1, nPts);
-        maxNTrials = nTrials;
-        curNTrials = 0;
-        bestNInliers = 0;
-        logOneMinusConf = log(1 - confidence);
-        oneOverNPts = 1 / nPts;
+    n = size(x1,2);
+    if(n >= 4)
+        if strcmp(method, 'default')
 
-          while curNTrials < maxNTrials
-            d = estHomoMatrix(x1, y1, x2, y2, nPts);
-
-            [curInliers, curNInliers] = findInliers(d, nPts, threshold);
-
-            if bestNInliers < curNInliers
-              bestNInliers = curNInliers;
-              inliers = curInliers;
-
-              % Update the number of trials
-              maxNTrials = updateNumTrials(oneOverNPts, logOneMinusConf, ...
-                outputClass, integerClass, curNInliers, maxNTrials);
-            end
-            curNTrials = curNTrials + 1;
-          end
-
-          if bestNInliers >= 8
+            rows0 = zeros(3, n);
+            rowsXY = -[x1; y1; ones(1,n)];
+            hx = [rowsXY; rows0; x2.*x1; x2.*y1; x2];
+            hy = [rows0; rowsXY; y2.*x1; y2.*y1; y2];
+            h = [hx hy];
+            [U, ~, V] = svd(h');
+            res = (reshape(V(:,9), 3, 3)).';
             status = statusCode.NoError;
-          else
-            status = statusCode.NotEnoughInliers;
-          end
-        
+        else
+            if(size(x1,2) > size(x2,2))
+                nPts = size(x2,2);
+            else
+                nPts = size(x1,2);
+            end
+            maxNTrials = nTrials;
+            curNTrials = 0;
+            bestNInliers = 0;
+            logOneMinusConf = log(1 - confidence);
+            oneOverNPts = 1 / nPts;
+
+              while curNTrials < maxNTrials
+                [d, H] = estHomoMatrix(x1, y1, x2, y2);
+
+                curNInliers = findInliers(d, threshold);
+
+                if bestNInliers < curNInliers
+                    bestNInliers = curNInliers;
+                    res = H;
+                    % Update the number of trials
+                    %maxNTrials = updateNumTrials(oneOverNPts, logOneMinusConf, curNInliers, maxNTrials);
+                end
+                curNTrials = curNTrials + 1;
+              end
+
+              if bestNInliers >= 4
+                status = statusCode.NoError;
+              else
+                status = statusCode.NotEnoughInliers;
+              end
+
+        end
+    else
+        status = statusCode.NotEnoughInliers;
     end
 
 
@@ -82,5 +85,40 @@ oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
 transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
 
 %Calculate the homography accuracy HA
-d = hypot(([x1; y1] - transPoints([1,2], :))');
+disM = [x1; y1] - transPoints([1,2], :);
+d = hypot(disM(1,:), disM(2,:));
 
+function curNInliers = findInliers(d, threshold)
+
+idx = 1;
+curNInliers = 0;
+while(idx <= size(d,2))
+    if(d(idx) <= threshold)
+        curNInliers = curNInliers + 1;
+    end
+    idx = idx + 1;
+end
+
+%========================================================================== 
+% Update the number of trials based on the desired confidence and the
+% inlier ratio.
+% Referenced from Matlab estimateFundamentalMatrix.m function
+%========================================================================== 
+function maxNTrials = updateNumTrials(oneOverNPts, logOneMinusConf, curNInliers, maxNTrials)
+
+ratioOfInliers = curNInliers * oneOverNPts;
+if ratioOfInliers > 1 - eps
+  newNum = 0;
+else
+  ratio8 = ratioOfInliers^8;
+  if ratio8 > eps
+    logOneMinusRatio8 = log(1 - ratio8);
+    newNum = ceil(logOneMinusConf / logOneMinusRatio8);
+  else
+    newNum = intmax;
+  end
+end
+
+if maxNTrials > newNum
+  maxNTrials = newNum;
+end
