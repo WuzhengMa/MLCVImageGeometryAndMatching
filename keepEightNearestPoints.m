@@ -7,8 +7,13 @@ function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEightNearestPoints(sSizeDe
     LX = [];
     LY = [];
     [nearestIndex, distance] = knnsearch(lSizeDescriptors, sSizeDescriptors, 'Distance', 'cityblock');
-    eightNearestDistances = sort(distance);
+    [eightNearestDistances, sortedIdx] = sort(distance);
     eightNearestDistances = eightNearestDistances(1:8);
+    eightIndex = sortedIdx(1:8);
+    for i = 1:size(eightNearestDistances)
+        eightNNeighborIndex(i) = nearestIndex(eightIndex(i));
+    end
+    %{
     for i = 1:size(eightNearestDistances)
         for j = 1:size(distance)
             if eightNearestDistances(i) == distance(j)
@@ -17,8 +22,9 @@ function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEightNearestPoints(sSizeDe
         end
         eightNNeighborIndex(i) = nearestIndex(eightIndex(i));
     end
+    %}
 
-    inlinerFlag = eightNearestDistances < mean(eightNearestDistances)*inlinerFactor;
+    inlinerFlag = eightNearestDistances <= mean(eightNearestDistances)*inlinerFactor;
     for i = 1:size(inlinerFlag)
         if inlinerFlag(i)
             sSizeDesp = [sSizeDesp; sSizeDescriptors(eightIndex(i),:)];

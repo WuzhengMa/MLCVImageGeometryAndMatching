@@ -1,4 +1,4 @@
-function [res, status] = getHomographyMatrix(x1, y1, x2, y2, method, nTrials)
+function [res, inliers, status] = getHomographyMatrix(x1, y1, x2, y2, method, nTrials)
     %[x2, y2] = rearrangePoints(nearestIndex, x2, y2);
     confidence = 99;
     threshold = 0.01;
@@ -18,6 +18,8 @@ function [res, status] = getHomographyMatrix(x1, y1, x2, y2, method, nTrials)
             h = [hx hy];
             [U, ~, V] = svd(h');
             res = (reshape(V(:,9), 3, 3)).';
+            res = res./res(3,3);
+            inliers(:) = true(1, n);
             status = statusCode.NoError;
         else
             if(size(x1,2) > size(x2,2))
@@ -25,6 +27,7 @@ function [res, status] = getHomographyMatrix(x1, y1, x2, y2, method, nTrials)
             else
                 nPts = size(x1,2);
             end
+            inliers = false(nPts, 1);
             maxNTrials = nTrials;
             curNTrials = 0;
             bestNInliers = 0;
@@ -34,11 +37,12 @@ function [res, status] = getHomographyMatrix(x1, y1, x2, y2, method, nTrials)
               while curNTrials < maxNTrials
                 [d, H] = estHomoMatrix(x1, y1, x2, y2);
 
-                curNInliers = findInliers(d, threshold);
+                [curInliers, curNInliers] = findInliers(d, threshold);
 
                 if bestNInliers < curNInliers
                     bestNInliers = curNInliers;
                     res = H;
+                    inliers = curInliers;
                     % Update the number of trials
                     %maxNTrials = updateNumTrials(oneOverNPts, logOneMinusConf, curNInliers, maxNTrials);
                 end
@@ -50,10 +54,12 @@ function [res, status] = getHomographyMatrix(x1, y1, x2, y2, method, nTrials)
               else
                 status = statusCode.NotEnoughInliers;
               end
-
+              res = res./res(3,3);
         end
     else
         status = statusCode.NotEnoughInliers;
+        inliers = false(n, 1);
+        res=zeros(3,3);
     end
 
 
@@ -88,13 +94,15 @@ transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate
 disM = [x1; y1] - transPoints([1,2], :);
 d = hypot(disM(1,:), disM(2,:));
 
-function curNInliers = findInliers(d, threshold)
+function [curInliers, curNInliers] = findInliers(d, threshold)
 
 idx = 1;
 curNInliers = 0;
+curInliers = false(size(d,2), 1);
 while(idx <= size(d,2))
     if(d(idx) <= threshold)
         curNInliers = curNInliers + 1;
+        curInliers(idx) = true;
     end
     idx = idx + 1;
 end

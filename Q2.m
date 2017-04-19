@@ -2,8 +2,9 @@ init;
 patchSize = 32;
 
 %% Q2.1 Find interest points on origin/resized image
-imageName1 = 'HGFigures/DSC02715.ppm';
-imageName1ResizedHalfColor = 'HGFigures/DSC02715ResizedHalf.ppm';
+imageName1 = 'HGFigures/DSC02723.ppm';
+%imageName1ResizedHalfColor = 'HGFigures/DSC02723.ppm';
+imageName1ResizedHalfColor = 'HGFigures/DSC02723ResizedHalf.ppm';
 %imageName1ResizedHalfColor = (imread(imageName1));
 %imageName1ResizedHalfColor = imresize(imageName1ResizedHalfColor, 0.5);
 %imwrite(imageName1ResizedHalfColor,'HGFigures/DSC02715ResizedHalf.ppm','ppm')
@@ -19,8 +20,8 @@ end
 %imshow(imgExample1);
 
 %Find interest points of images
-[x1, y1] = harrisDetector(imageName1, patchSize);
-[x1ResizedHalf, y1ResizedHalf] = harrisDetector(imageName1ResizedHalfColor, patchSize);
+[x1, y1] = harrisDetector(imageName1, patchSize, 500, 10);
+[x1ResizedHalf, y1ResizedHalf] = harrisDetector(imageName1ResizedHalfColor, patchSize, 500, 10);
 
 %Get color histogram descriptor
 colorHistogram = true; %Using the intensity at each pixel of the map is better than using color histogram
@@ -68,7 +69,7 @@ plot(y1ResizedHalf,x1ResizedHalf,'rx');
 hold off;
 
 %Calculate homography
-h = getHomographyMatrix(x1, y1, x1ResizedHalf, y1ResizedHalf, 'RANSAC', 2000);
+[h, inliers, HMstatus] = getHomographyMatrix(x1, y1, x1ResizedHalf, y1ResizedHalf, 'RANSAC', 2000);
 
 %Obtain the projection points from image 2 to image 1
 homoTransPoints = h\[x1ResizedHalf;y1ResizedHalf;ones(1,size(x1ResizedHalf,2))];
@@ -77,4 +78,4 @@ oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
 transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
 
 %Calculate the homography accuracy HA
-[HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
+[HA, HD] = getHomoAccuracy([x1(inliers); y1(inliers)], transPoints([1,2], inliers))
