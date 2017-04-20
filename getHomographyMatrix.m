@@ -1,7 +1,7 @@
 function [res, inliers, status] = getHomographyMatrix(x1, y1, x2, y2, method, nTrials)
     %[x2, y2] = rearrangePoints(nearestIndex, x2, y2);
     confidence = 99;
-    threshold = 0.01;
+    threshold = 10;
     
     statusCode = struct('NoError',           int32(0),...
                     'NotEnoughPts',      int32(1),...
@@ -51,10 +51,12 @@ function [res, inliers, status] = getHomographyMatrix(x1, y1, x2, y2, method, nT
 
               if bestNInliers >= 4
                 status = statusCode.NoError;
+                res = res./res(3,3);
               else
                 status = statusCode.NotEnoughInliers;
+                res=zeros(3,3);
               end
-              res = res./res(3,3);
+              
         end
     else
         status = statusCode.NotEnoughInliers;
@@ -84,14 +86,19 @@ res = (reshape(V(:,9), 3, 3)).';
 
 function d = calHADistance(x1, y1, x2, y2, H)
 
+%{
 %Obtain the projection points from image 2 to image 1
 homoTransPoints = H\[x2;y2;ones(1,size(x2,2))];
 oneOverHomoZ=(1./homoTransPoints(3,:));
 oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
 transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
+%}
+q = H * [x1; y1; ones(1, size(x1,2))];
+p = q(3,:);
+transPoints = [q(1,:)./p; q(2,:)./p];
 
 %Calculate the homography accuracy HA
-disM = [x1; y1] - transPoints([1,2], :);
+disM = [x2; y2] - transPoints([1,2], :);
 d = hypot(disM(1,:), disM(2,:));
 
 function [curInliers, curNInliers] = findInliers(d, threshold)

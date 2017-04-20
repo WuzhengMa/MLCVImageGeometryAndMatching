@@ -72,13 +72,13 @@ hold off;
 [h, inliers, HMstatus] = getHomographyMatrix(x1, y1, x2, y2, 'RANSAC', 2000);
 
 %Obtain the projection points from image 2 to image 1
-homoTransPoints = h\[x2;y2;ones(1,size(x2,2))];
+homoTransPoints = h * [x1;y1;ones(1,size(x1,2))];
 oneOverHomoZ=(1./homoTransPoints(3,:));
 oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
 transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
 
 %Calculate the homography accuracy HA
-[HA, HD] = getHomoAccuracy([x1(inliers); y1(inliers)], transPoints([1,2], inliers))
+[HA, HD] = getHomoAccuracy([x2(inliers); y2(inliers)], transPoints([1,2], inliers))
 
 %% Q2.1.b) manual v.s. auto
 imageName1 = 'HGFigures/DSC02723.ppm';
@@ -168,25 +168,25 @@ hold off;
 [h, inliers, HMstatus] = getHomographyMatrix(x1, y1, x2, y2, 'RANSAC', 2000);
 
 %Obtain the projection points from image 2 to image 1
-homoTransPoints = h\[x2;y2;ones(1,size(x2,2))];
+homoTransPoints = h * [x1;y1;ones(1,size(x1,2))];
 oneOverHomoZ=(1./homoTransPoints(3,:));
 oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
 transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
 
 %Calculate the homography accuracy HA
-[HA, HD] = getHomoAccuracy([x1(inliers); y1(inliers)], transPoints([1,2], inliers))
+[HA, HD] = getHomoAccuracy([x2(inliers); y2(inliers)], transPoints([1,2], inliers))
 
 %Calculate homography from manual selected corrspondence points
 [hM, inliersM, HMstatusM] = getHomographyMatrix(x1M, y1M, x2M, y2M, 'RANSAC', 2000);
 
 %Obtain the projection points from image 2 to image 1
-homoTransPointsM = hM\[x2M;y2M;ones(1,size(x2M,2))];
+homoTransPointsM = hM * [x1M;y1M;ones(1,size(x1M,2))];
 oneOverHomoZM=(1./homoTransPointsM(3,:));
 oneOverHomoZM=[oneOverHomoZM; oneOverHomoZM; oneOverHomoZM];
 transPointsM = oneOverHomoZM.*homoTransPointsM; %Change from homogeneous coordinate to imhomogeneous coordinates
 
 %Calculate the homography accuracy HA
-[HAM, HDM] = getHomoAccuracy([x1M(inliersM); y1M(inliersM)], transPointsM([1,2], inliersM))
+[HAM, HDM] = getHomoAccuracy([x2M(inliersM); y2M(inliersM)], transPointsM([1,2], inliersM))
 
 %% Q2.1.c) Vary the number of interest points
 imageName1 = 'HGFigures/DSC02723.ppm';
@@ -241,13 +241,13 @@ for i = 1:10    % 10 trials
         [h, inliers, HMstatus] = getHomographyMatrix(x1Sel, y1Sel, x2Sel, y2Sel, 'RANSAC', 2000);
 
         %Obtain the projection points from image 2 to image 1
-        homoTransPoints = h\[x2Sel;y2Sel;ones(1,size(x2Sel,2))];
+        homoTransPoints = h * [x1Sel;y1Sel;ones(1,size(x1Sel,2))];
         oneOverHomoZ=(1./homoTransPoints(3,:));
         oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
         transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
 
         %Calculate the homography accuracy HA
-        [HATrials(i), HDTrials(i)] = getHomoAccuracy([x1Sel; y1Sel], transPoints([1,2], :));
+        [HATrials(i), HDTrials(i)] = getHomoAccuracy([x2Sel; y2Sel], transPoints([1,2], :));
 
     %end
 end
@@ -266,8 +266,8 @@ else
 end
 
 %Find interest points of images
-[x1, y1] = harrisDetector(imageName1, patchSize, 10000, 10);
-[x2, y2] = harrisDetector(imageName2, patchSize, 10000, 10);
+[x1, y1] = harrisDetector(imageName1, patchSize, 100, 10);
+[x2, y2] = harrisDetector(imageName2, patchSize, 100, 10);
 
 %Get color histogram descriptor
 colorHistogram = true; %Using the intensity at each pixel of the map is better than using color histogram
@@ -277,6 +277,31 @@ descriptors2 = getDescriptors(imgExample2, x2, y2, patchSize, colorHistogram);
 %Match interest points by Harris
 [descriptors1, descriptors2, x1, y1, x2, y2] = ...
     matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
+
+%Calculate homography
+[h, inliers, HMstatus] = getHomographyMatrix(x1, y1, x2, y2, 'RANSAC', 2000);
+
+%Obtain the projection points from image 2 to image 1
+q = h * [x1; y1; ones(1, size(x1,2))];
+p = q(3,:);
+transPoints = [q(1,:)./p; q(2,:)./p];
+
+%Show interest points
+subplot(1,2,1);
+imshow(imageName1);
+title('Interest points auto detection for image 1');
+hold on;
+%plot(features1(1,:), features1(2,:), 'rx');
+plot(y1,x1,'rx');
+hold off; 
+
+subplot(1,2,2);
+imshow(imageName2);
+title('Interest auto detection for image 2');
+hold on;
+%plot(features2(1,:), features2(2,:), 'rx');
+plot(transPoints(2,:),transPoints(1,:),'rx');
+hold off;
 
 %Calculate fundamental matrix
 %[F,inliersIndex] = getFundamentalMatrix([x1', y1'],[x2', y2'], 'RANSAC', 20000);
