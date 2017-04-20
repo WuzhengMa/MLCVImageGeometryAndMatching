@@ -253,8 +253,8 @@ for i = 1:10    % 10 trials
 end
 
 %% Q2.1.c) Vary the number of interest points
-imageName1 = 'FDFigures/building1.ppm';
-imageName2 = 'FDFigures/building2.ppm';
+imageName1 = 'FDFigures/plant2.ppm';
+imageName2 = 'FDFigures/plant3.ppm';
 
 
 if size(size(imread(imageName1)),2) == 2
@@ -266,8 +266,8 @@ else
 end
 
 %Find interest points of images
-[x1, y1] = harrisDetector(imageName1, patchSize, 100, 10);
-[x2, y2] = harrisDetector(imageName2, patchSize, 100, 10);
+[x1, y1] = harrisDetector(imageName1, patchSize, 10, 10);
+[x2, y2] = harrisDetector(imageName2, patchSize, 10, 10);
 
 %Get color histogram descriptor
 colorHistogram = true; %Using the intensity at each pixel of the map is better than using color histogram
@@ -278,6 +278,7 @@ descriptors2 = getDescriptors(imgExample2, x2, y2, patchSize, colorHistogram);
 [descriptors1, descriptors2, x1, y1, x2, y2] = ...
     matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, 'RANSAC');
 
+%{
 %Calculate homography
 [h, inliers, HMstatus] = getHomographyMatrix(x1, y1, x2, y2, 'RANSAC', 2000);
 
@@ -302,10 +303,12 @@ hold on;
 %plot(features2(1,:), features2(2,:), 'rx');
 plot(transPoints(2,:),transPoints(1,:),'rx');
 hold off;
-
+%}
+    
 %Calculate fundamental matrix
-%[F,inliersIndex] = getFundamentalMatrix([x1', y1'],[x2', y2'], 'RANSAC', 20000);
-[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'RANSAC', 'NumTrials');
+[F,inliersIndex] = getFundamentalMatrix([x1', y1'],[x2', y2'], 'RANSAC', 20000);
+%[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], ...
+%    'Method', 'RANSAC', 'NumTrials', 10000, 'DistanceThreshold', 10);
 
 %Get epipoles
 [e1, e2] = getEpipoles(F);
@@ -332,3 +335,31 @@ epiLines = (F'*[x1', y1', ones(size(x1,2),1)]')';
 points = lineToBorderPoints(epiLines, [size(imgExample1,2), size(imgExample1,1)]);
 line(points(:,[2,4])',points(:,[1,3])');
 hold off;
+
+%% Q2.2.C) Compute the disparity map                             
+figure;
+subplot(1,2,1);
+title('Red-cyan graph of two images');
+imshow(stereoAnaglyph(imgExample1,imgExample2));
+%imtool(stereoAnaglyph(imgExample1,imgExample2));
+disparityRange = [1, 97];
+disparityMap = disparity(imgExample1, imgExample2, 'BlockSize', 15, 'DisparityRange', disparityRange);
+subplot(1,2,2);
+imshow(disparityMap,disparityRange);
+title('Disparity Map');
+colormap jet;
+colorbar;
+
+%% Q2.2.D) Compute the depth map
+focalLen = 0.018;   %18mm
+baseline = 0.1;     %10cm
+depthMap = (focalLen * baseline) ./ disparityMap; 
+[gridX, gridY] = meshgrid(1:size(disparityMap,2), 1:size(disparityMap, 1));
+ptCloud = pointCloud(cat(3, gridX, gridY, disparityMap), 'Color', (imread(imageName1)));
+
+% Create a streaming point cloud viewer
+player3D = pcplayer([1, 400], [1, 600], [0, 100], 'VerticalAxis', 'y', ...
+    'VerticalAxisDir', 'down');
+
+% Visualize the point cloud
+view(player3D, ptCloud);

@@ -1,7 +1,7 @@
 function [F, inliers] = getFundamentalMatrix(pts1, pts2, method, numTrials)
     integerClass = 'int32';
     outputClass = 'double';
-    distanceThreshold = 0.01;
+    distanceThreshold = 10;
     conf = 0.99;
 
     threshold = cast(distanceThreshold, outputClass);
