@@ -2,8 +2,8 @@ init;
 patchSize = 32;
 
 %% Q1.2.a) Harris interest point detector
-imageName1 = 'tsukuba/scene1.row3.col1.ppm';
-imageName2 = 'tsukuba/scene1.row3.col4.ppm';
+imageName1 = 'FDFigures/DSC02736.ppm';
+imageName2 = 'FDFigures/DSC02737.ppm';
 
 if size(size(imread(imageName1)),2) == 2
     imgExample1 = (imread(imageName1));
@@ -14,8 +14,8 @@ else
 end
 
 
-[x1, y1] = harrisDetector(imageName1, patchSize, 100, 10);
-[x2, y2] = harrisDetector(imageName2, patchSize, 100, 10);
+[x1, y1] = harrisDetector(imageName1, patchSize, 1000, 10);
+[x2, y2] = harrisDetector(imageName2, patchSize, 1000, 10);
 
 
 %% Q1.2.b)
@@ -72,8 +72,8 @@ hold off;
 %descriptor2
 %[nearestIndex, distance] = knnsearch(descriptors2, descriptors1, 'Distance', 'cityblock');
 
-%% Q1.3.a)
-[h, status1] = getHomographyMatrix(x1, y1, x2, y2, 'default', 500);
+%% Q1.3.a) Q1.3.c)
+[h, status1] = getHomographyMatrix(x1, y1, x2, y2, 'RANSAC', 2000);
 
 %Obtain the projection points from image 2 to image 1
 homoTransPoints = h\[x2;y2;ones(1,size(x2,2))];
@@ -82,27 +82,7 @@ oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
 transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
 
 %Calculate the homography accuracy HA
-[HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
-
-
-%% Q1.3.b) Computing fundamental matrix F, where x'^TFx = 0
-%Using MATLAB build-in function
-%[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'Norm8Point');
-%[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'RANSAC')
-
-%Using own implementation
-%[F,inliersIndex] = getFundamentalMatrix([x1', y1'],[x2', y2'], 'Norm8Points', 1);
-[F,inliersIndex] = getFundamentalMatrix([x1', y1'],[x2', y2'], 'RANSAC', 20000)
-
-%% Q1.3.c)
-%Obtain the projection points from image 2 to image 1
-homoTransPoints = h\[x2;y2;ones(1,size(x2,2))];
-oneOverHomoZ=(1./homoTransPoints(3,:));
-oneOverHomoZ=[oneOverHomoZ; oneOverHomoZ; oneOverHomoZ];
-transPoints = oneOverHomoZ.*homoTransPoints; %Change from homogeneous coordinate to imhomogeneous coordinates
-
-%Calculate the homography accuracy HA
-[HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :))
+[HA, HD] = getHomoAccuracy([x1; y1], transPoints([1,2], :));
 
 % Draw the projected point back to image 1
 imshow(imageName1);
@@ -112,7 +92,18 @@ plot(transPoints(2,:), transPoints(1,:), 'rx');
 hold off;
 
 
-%% Q1.3.d)
+%% Q1.3.b) Q1.3.d) Computing fundamental matrix F, where x'^TFx = 0
+%Using MATLAB build-in function
+%[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'Norm8Point');
+%[F,inliersIndex] = estimateFundamentalMatrix([x1', y1'],[x2', y2'], 'Method', 'RANSAC')
+
+%Using own implementation
+%[F,inliersIndex] = getFundamentalMatrix([x1', y1'],[x2', y2'], 'Norm8Points', 1);
+[F,inliersIndex] = getFundamentalMatrix([x1', y1'],[x2', y2'], 'RANSAC', 2000);
+
+%Get epipoles
+[e1, e2] = getEpipoles(F);
+
 figure;
 subplot(1,2,1);
 imshow(imageName1);
@@ -136,182 +127,19 @@ points = lineToBorderPoints(epiLines, [size(imgExample1,2), size(imgExample1,1)]
 line(points(:,[2,4])',points(:,[1,3])');
 hold off;
 
-%% Utility functions 
-%{
-function res = getDescriptors(imgExample, x, y, patchSize, colorHistogram)
-    descriptors = zeros(size(x,1), patchSize*patchSize);  % descriptor of size N*M
-    colorHistDescriptors = zeros(size(x,1), 256);
-    for k = 1:size(x)
-        xPatch = x(k) - (patchSize/2);
-        yPatch = y(k) - (patchSize/2);
-        patchData = zeros(1, patchSize*patchSize);
-        for i = 1:patchSize
-            for j = 1:patchSize
-                patchData(:,(i-1)*patchSize+j) = imgExample(xPatch+i, yPatch+j);
-            end
-        end
-        if colorHistogram
-            colorHistDescriptors(k,:) = histcounts(patchData, 256);
-        else
-            descriptors(k,:) = patchData;
-        end
-    end
-    if colorHistogram
-       res = colorHistDescriptors;
-    else
-       res = descriptors;
-    end
-end
 
-function [x, y] = harrisDetector(imageName, patchSize)
-    if size(size(imread(imageName)),2) == 2
-        imgExample = (imread(imageName));
-    else
-        imgExample = rgb2gray(imread(imageName));
-    end
-    [cim, x, y] = getAutoInterestPoints(imgExample, 2000, 30);
-    [x, y] = removeEdgePoints(imgExample, x, y, patchSize);
-end
+%% Q2.2.C) Compute the disparity map                             
+figure;
+subplot(1,2,1);
+title('Red-cyan graph of two images');
+imshow(stereoAnaglyph(imgExample1,imgExample2));
+imtool(stereoAnaglyph(imgExample1,imgExample2));
+disparityRange = [0, 96];
+disparityMap = disparity(imgExample1, imgExample2, 'BlockSize', 15, 'DisparityRange', disparityRange);
+subplot(1,2,2);
+imshow(disparityMap,disparityRange);
+title('Disparity Map');
+colormap jet;
+colorbar;
 
-
-function [x, y] = removeEdgePoints(imgExample, x, y, patchSize)
-    %Remove edges at boundary
-    [R, C] = size(imgExample);
-    removalInx = [];
-    for i = 1:size(x)
-        if(x(i) < patchSize/2 || x(i) > R - patchSize/2)
-            removalInx = [removalInx, i];
-        end
-        if(y(i) < patchSize/2 || y(i) > C - patchSize/2)
-            removalInx = [removalInx, i];
-        end
-    end
-    removalInx = unique(removalInx);
-    x(removalInx) = [];
-    y(removalInx) = [];
-end
-
-function res = getHomographyMatrix(x1, y1, x2, y2)
-    %[x2, y2] = rearrangePoints(nearestIndex, x2, y2);
-   
-    n = size(x1,2);
-%     h = [];
-%     for i=1:n
-%         rows0 = zeros(3, 1);
-%         rowsXY = -[x1(i); y1(i); 1];
-%         hx = [rowsXY; rows0; x2(i).*x1(i); x2(i).*y1(i); x2(i)];
-%         hy = [rows0; rowsXY; y2(i).*x1(i); y2(i).*y1(i); y2(i)];
-%         h = [h, hx, hy]; 
-%     end
-    rows0 = zeros(3, n);
-    rowsXY = -[x1; y1; ones(1,n)];
-    hx = [rowsXY; rows0; x2.*x1; x2.*y1; x2];
-    hy = [rows0; rowsXY; y2.*x1; y2.*y1; y2];
-    h = [hx hy];
-    [U, ~, V] = svd(h');
-    res = (reshape(V(:,9), 3, 3)).';
-end
-
-% function [x, y] = rearrangePoints(nearestIndex, x, y)
-%     tempX = x;
-%     tempY = y;
-%     %Rearrange x and y to match coordinates in x1 and y1 
-%     for i = 1:size(nearestIndex)
-%         x(i) = tempX(nearestIndex(i));
-%         y(i) = tempY(nearestIndex(i));
-%     end
-% end
-
-function [HA, HD] = getHomoAccuracy(oriPoints, transPoints)
-    %HD is computed as the sum of difference between transformed points and
-    %the original points
-    %HA is computed as the rate where the transformed points is identical
-    %to the original points
-    HA = 0;
-    HD = sum(sum(abs(oriPoints - transPoints)));
-    correctMapped = HD < [1;1];
-    for i = 1:size(correctMapped,2)
-        if correctMapped(1,i) && correctMapped(1,i)
-            HA = HA + 1;
-        end
-    end
-    HA = HA / size(correctMapped,2); %Homography Accuracy
-end
-
-function [desp1, desp2, X1, Y1, X2, Y2] = matchDescriptorSize(descriptors1, descriptors2, x1, y1, x2, y2, method)
-    %When the method is 'Norm8Points', only 8 pairs of interest points will 
-    %be used, hence use NN method to find 8 pairs of closest interest points
-    %When the method is 'RANSAC', equal pairs of interest points will be
-    %used, hence use NN method to find equal pairs of closest interest
-    %points
-    inlinerFactor = 1.8;
-    if size(descriptors2, 1) >= size(descriptors1, 1)
-        if strcmp(method, 'Norm8Points')
-            [desp1, desp2, X1, Y1, X2, Y2] = keepEightNearestPoints(descriptors1, descriptors2, x1, y1, x2, y2, inlinerFactor);
-        elseif strcmp(method, 'RANSAC')
-            [desp1, desp2, X1, Y1, X2, Y2] = keepEqualNumPoints(descriptors1, descriptors2, x1, y1, x2, y2, inlinerFactor);
-        end
-    elseif size(descriptors2, 1) < size(descriptors1, 1)
-        if strcmp(method, 'Norm8Points')
-            [desp2, desp1, X2, Y2, X1, Y1] = keepEightNearestPoints(descriptors2, descriptors1, x2, y2, x1, y1, inlinerFactor);
-        elseif strcmp(method, 'RANSAC')
-            [desp2, desp1, X2, Y2, X1, Y1] = keepEqualNumPoints(descriptors2, descriptors1, x2, y2, x1, y1, inlinerFactor);
-        end
-    end
-end
-
-function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEightNearestPoints(sSizeDescriptors, lSizeDescriptors, sx, sy, lx, ly, inlinerFactor)
-    %Use NN search to find 8 pairs of closest interest points
-    sSizeDesp = [];
-    lSizeDesp = [];
-    SX = [];
-    SY = [];
-    LX = [];
-    LY = [];
-    [nearestIndex, distance] = knnsearch(lSizeDescriptors, sSizeDescriptors, 'Distance', 'cityblock');
-    eightNearestDistances = sort(distance);
-    eightNearestDistances = eightNearestDistances(1:8);
-    for i = 1:size(eightNearestDistances)
-        for j = 1:size(distance)
-            if eightNearestDistances(i) == distance(j)
-                eightIndex(i) = j;
-            end
-        end
-        eightNNeighborIndex(i) = nearestIndex(eightIndex(i));
-    end
-
-    inlinerFlag = eightNearestDistances < mean(eightNearestDistances)*inlinerFactor;
-    for i = 1:size(inlinerFlag)
-        if inlinerFlag(i)
-            sSizeDesp = [sSizeDesp; sSizeDescriptors(eightIndex(i),:)];
-            lSizeDesp = [lSizeDesp; lSizeDescriptors(eightNNeighborIndex(i),:)];
-            SX = [SX, sx(eightIndex(i),:)];
-            SY = [SY, sy(eightIndex(i),:)];
-            LX = [LX, lx(eightNNeighborIndex(i), :)];
-            LY = [LY, ly(eightNNeighborIndex(i), :)];
-        end
-    end
-end
-
-function [sSizeDesp, lSizeDesp, SX, SY, LX, LY] = keepEqualNumPoints(sSizeDescriptors, lSizeDescriptors, sx, sy, lx, ly, inlinerFactor)
-    %Use NN search to find equal pairs of closest interest points
-    sSizeDesp = [];
-    lSizeDesp = [];
-    SX = [];
-    SY = [];
-    LX = [];
-    LY = [];
-    [nearestIndex, distance] = knnsearch(lSizeDescriptors, sSizeDescriptors, 'Distance', 'cityblock');
-    inlinerFlag = distance < mean(distance)*inlinerFactor;
-    for i = 1:size(inlinerFlag)
-        if inlinerFlag(i)
-            sSizeDesp = sSizeDescriptors;
-            lSizeDesp = [lSizeDesp; lSizeDescriptors(nearestIndex(i),:)];
-            SX = [SX, sx(i,:)'];
-            SY = [SY, sy(i,:)'];
-            LX = [LX, lx(nearestIndex(i), :)];
-            LY = [LY, ly(nearestIndex(i), :)];
-        end
-    end
-end
-%}
+%% 
